@@ -7,10 +7,10 @@ import (
 
 var logLevel = 4 // 0=NO_LOGGING 1=CRITICAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG, 6=DETAIL
 
-var prefix = ""
+var p = ""
 
-func SetPrefix(p string) {
-	prefix = p
+func SetPrefix(prefix string) {
+	p = prefix
 }
 
 func SetLogLevel(level int) {
