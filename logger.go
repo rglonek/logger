@@ -5,28 +5,42 @@ import (
 	"os"
 )
 
+var defaultLevel = 4
+
+var defaultPrefix = ""
+
+type Logger struct {
+	logLevel int
+	p        string
+}
+
+var defaultLogger = &Logger{
+	logLevel: 4, // 0=NO_LOGGING 1=CRITICAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG, 6=DETAIL
+	p:        "",
+}
+
 func Info(format string, v ...interface{}) {
-	defaultLogger.Info(format, v)
+	defaultLogger.Info(format, v...)
 }
 
 func Warn(format string, v ...interface{}) {
-	defaultLogger.Warn(format, v)
+	defaultLogger.Warn(format, v...)
 }
 
 func Error(format string, v ...interface{}) {
-	defaultLogger.Error(format, v)
+	defaultLogger.Error(format, v...)
 }
 
 func Critical(format string, v ...interface{}) {
-	defaultLogger.Critical(format, v)
+	defaultLogger.Critical(format, v...)
 }
 
 func Debug(format string, v ...interface{}) {
-	defaultLogger.Debug(format, v)
+	defaultLogger.Debug(format, v...)
 }
 
 func Detail(format string, v ...interface{}) {
-	defaultLogger.Detail(format, v)
+	defaultLogger.Detail(format, v...)
 }
 
 func SetPrefix(prefix string) {
@@ -44,20 +58,6 @@ func NewLogger() *Logger {
 		logLevel: defaultLevel,
 		p:        defaultPrefix,
 	}
-}
-
-var defaultLevel = 4
-
-var defaultPrefix = ""
-
-type Logger struct {
-	logLevel int
-	p        string
-}
-
-var defaultLogger = &Logger{
-	logLevel: 4, // 0=NO_LOGGING 1=CRITICAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG, 6=DETAIL
-	p:        "",
 }
 
 func (l *Logger) SetPrefix(prefix string) {
