@@ -31,18 +31,24 @@ func Detail(format string, v ...interface{}) {
 
 func SetPrefix(prefix string) {
 	defaultLogger.SetPrefix(prefix)
+	defaultPrefix = prefix
 }
 
 func SetLogLevel(level int) {
 	defaultLogger.SetLogLevel(level)
+	defaultLevel = level
 }
 
 func NewLogger() *Logger {
 	return &Logger{
-		logLevel: defaultLogger.logLevel,
-		p:        defaultLogger.p,
+		logLevel: defaultLevel,
+		p:        defaultPrefix,
 	}
 }
+
+var defaultLevel = 4
+
+var defaultPrefix = ""
 
 type Logger struct {
 	logLevel int
