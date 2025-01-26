@@ -6,12 +6,23 @@ import (
 	"os"
 )
 
-var defaultLevel = 4
+var defaultLevel LogLevel = INFO
 
 var defaultPrefix = ""
 
+type LogLevel int
+
+const (
+	DETAIL   LogLevel = 6
+	DEBUG    LogLevel = 5
+	INFO     LogLevel = 4
+	WARNING  LogLevel = 3
+	ERROR    LogLevel = 2
+	CRITICAL LogLevel = 1
+)
+
 type Logger struct {
-	logLevel      int
+	logLevel      LogLevel
 	p             string
 	disableStderr bool
 	logToFile     string
@@ -45,7 +56,7 @@ func (l *Logger) SinkEnableKmesg() error {
 }
 
 var defaultLogger = &Logger{
-	logLevel: 4, // 0=NO_LOGGING 1=CRITICAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG, 6=DETAIL
+	logLevel: INFO, // 0=NO_LOGGING 1=CRITICAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG, 6=DETAIL
 	p:        "",
 }
 
@@ -78,7 +89,7 @@ func SetPrefix(prefix string) {
 	defaultPrefix = prefix
 }
 
-func SetLogLevel(level int) {
+func SetLogLevel(level LogLevel) {
 	defaultLogger.SetLogLevel(level)
 	defaultLevel = level
 }
@@ -90,11 +101,37 @@ func NewLogger() *Logger {
 	}
 }
 
+func (l *Logger) WithPrefix(prefix string) *Logger {
+	newLogger := &Logger{
+		logLevel:      l.logLevel,
+		p:             fmt.Sprintf("%s%s", l.p, prefix),
+		disableStderr: l.disableStderr,
+		logToFile:     l.logToFile,
+		fileLogger:    l.fileLogger,
+		kmesg:         l.kmesg,
+		enableKmesg:   l.enableKmesg,
+	}
+	return newLogger
+}
+
+func (l *Logger) WithLogLevel(level LogLevel) *Logger {
+	newLogger := &Logger{
+		logLevel:      level,
+		p:             l.p,
+		disableStderr: l.disableStderr,
+		logToFile:     l.logToFile,
+		fileLogger:    l.fileLogger,
+		kmesg:         l.kmesg,
+		enableKmesg:   l.enableKmesg,
+	}
+	return newLogger
+}
+
 func (l *Logger) SetPrefix(prefix string) {
 	l.p = prefix
 }
 
-func (l *Logger) SetLogLevel(level int) {
+func (l *Logger) SetLogLevel(level LogLevel) {
 	if level < 0 {
 		level = 0
 	}
