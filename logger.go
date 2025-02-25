@@ -164,7 +164,7 @@ func (l *Logger) Info(format string, v ...interface{}) {
 	if l.logLevel < 4 {
 		return
 	}
-	format = l.p + "INFO " + format
+	format = "INFO " + l.p + format
 	if !l.disableStderr {
 		l.stderrLogger.Printf(format, v...)
 	}
@@ -180,7 +180,7 @@ func (l *Logger) Warn(format string, v ...interface{}) {
 	if l.logLevel < 3 {
 		return
 	}
-	format = l.p + "WARNING " + format
+	format = "WARNING " + l.p + format
 	if !l.disableStderr {
 		l.stderrLogger.Printf(format, v...)
 	}
@@ -196,7 +196,7 @@ func (l *Logger) Error(format string, v ...interface{}) {
 	if l.logLevel < 2 {
 		return
 	}
-	format = l.p + "ERROR " + format
+	format = "ERROR " + l.p + format
 	if !l.disableStderr {
 		l.stderrLogger.Printf(format, v...)
 	}
@@ -210,7 +210,7 @@ func (l *Logger) Error(format string, v ...interface{}) {
 
 func (l *Logger) Critical(format string, v ...interface{}) {
 	if l.logLevel >= 1 {
-		format = l.p + "CRITICAL " + format
+		format = "CRITICAL " + l.p + format
 		if !l.disableStderr {
 			l.stderrLogger.Printf(format, v...)
 		}
@@ -228,7 +228,7 @@ func (l *Logger) Debug(format string, v ...interface{}) {
 	if l.logLevel < 5 {
 		return
 	}
-	format = l.p + "DEBUG " + format
+	format = "DEBUG " + l.p + format
 	if !l.disableStderr {
 		l.stderrLogger.Printf(format, v...)
 	}
@@ -244,7 +244,7 @@ func (l *Logger) Detail(format string, v ...interface{}) {
 	if l.logLevel < 6 {
 		return
 	}
-	format = l.p + "DETAIL " + format
+	format = "DETAIL " + l.p + format
 	if !l.disableStderr {
 		l.stderrLogger.Printf(format, v...)
 	}
