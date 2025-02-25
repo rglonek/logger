@@ -28,7 +28,9 @@ type Logger struct {
 	logToFile     string
 	enableKmesg   bool
 	fileLogger    *log.Logger
+	stderrLogger  *log.Logger
 	kmesg         *os.File
+	milliseconds  bool
 }
 
 func (l *Logger) SinkDisableStderr() {
@@ -96,8 +98,24 @@ func SetLogLevel(level LogLevel) {
 
 func NewLogger() *Logger {
 	return &Logger{
-		logLevel: defaultLevel,
-		p:        defaultPrefix,
+		logLevel:     defaultLevel,
+		p:            defaultPrefix,
+		stderrLogger: log.New(os.Stderr, "", log.LstdFlags),
+	}
+}
+
+func (l *Logger) MillisecondLogging(enable bool) {
+	l.milliseconds = enable
+	if enable {
+		l.stderrLogger.SetFlags(log.LstdFlags | log.Lmicroseconds)
+		if l.fileLogger != nil {
+			l.fileLogger.SetFlags(log.LstdFlags | log.Lmicroseconds)
+		}
+	} else {
+		l.stderrLogger.SetFlags(log.LstdFlags)
+		if l.fileLogger != nil {
+			l.fileLogger.SetFlags(log.LstdFlags)
+		}
 	}
 }
 
@@ -110,6 +128,8 @@ func (l *Logger) WithPrefix(prefix string) *Logger {
 		fileLogger:    l.fileLogger,
 		kmesg:         l.kmesg,
 		enableKmesg:   l.enableKmesg,
+		stderrLogger:  l.stderrLogger,
+		milliseconds:  l.milliseconds,
 	}
 	return newLogger
 }
@@ -123,6 +143,8 @@ func (l *Logger) WithLogLevel(level LogLevel) *Logger {
 		fileLogger:    l.fileLogger,
 		kmesg:         l.kmesg,
 		enableKmesg:   l.enableKmesg,
+		stderrLogger:  l.stderrLogger,
+		milliseconds:  l.milliseconds,
 	}
 	return newLogger
 }
@@ -144,7 +166,7 @@ func (l *Logger) Info(format string, v ...interface{}) {
 	}
 	format = l.p + "INFO " + format
 	if !l.disableStderr {
-		log.Printf(format, v...)
+		l.stderrLogger.Printf(format, v...)
 	}
 	if l.fileLogger != nil {
 		l.fileLogger.Printf(format, v...)
@@ -160,7 +182,7 @@ func (l *Logger) Warn(format string, v ...interface{}) {
 	}
 	format = l.p + "WARNING " + format
 	if !l.disableStderr {
-		log.Printf(format, v...)
+		l.stderrLogger.Printf(format, v...)
 	}
 	if l.fileLogger != nil {
 		l.fileLogger.Printf(format, v...)
@@ -176,7 +198,7 @@ func (l *Logger) Error(format string, v ...interface{}) {
 	}
 	format = l.p + "ERROR " + format
 	if !l.disableStderr {
-		log.Printf(format, v...)
+		l.stderrLogger.Printf(format, v...)
 	}
 	if l.fileLogger != nil {
 		l.fileLogger.Printf(format, v...)
@@ -190,7 +212,7 @@ func (l *Logger) Critical(format string, v ...interface{}) {
 	if l.logLevel >= 1 {
 		format = l.p + "CRITICAL " + format
 		if !l.disableStderr {
-			log.Printf(format, v...)
+			l.stderrLogger.Printf(format, v...)
 		}
 		if l.fileLogger != nil {
 			l.fileLogger.Printf(format, v...)
@@ -208,7 +230,7 @@ func (l *Logger) Debug(format string, v ...interface{}) {
 	}
 	format = l.p + "DEBUG " + format
 	if !l.disableStderr {
-		log.Printf(format, v...)
+		l.stderrLogger.Printf(format, v...)
 	}
 	if l.fileLogger != nil {
 		l.fileLogger.Printf(format, v...)
@@ -224,7 +246,7 @@ func (l *Logger) Detail(format string, v ...interface{}) {
 	}
 	format = l.p + "DETAIL " + format
 	if !l.disableStderr {
-		log.Printf(format, v...)
+		l.stderrLogger.Printf(format, v...)
 	}
 	if l.fileLogger != nil {
 		l.fileLogger.Printf(format, v...)
