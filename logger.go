@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
+	"time"
 )
 
 var defaultLevel LogLevel = INFO
@@ -22,15 +24,26 @@ const (
 )
 
 type Logger struct {
-	logLevel      LogLevel
-	p             string
-	disableStderr bool
-	logToFile     string
-	enableKmesg   bool
-	fileLogger    *log.Logger
-	stderrLogger  *log.Logger
-	kmesg         *os.File
-	milliseconds  bool
+	logLevel            LogLevel
+	p                   string
+	disableStderr       bool
+	logToFile           string
+	enableKmesg         bool
+	fileLogger          *log.Logger
+	stderrLogger        *log.Logger
+	kmesg               *os.File
+	milliseconds        bool
+	sinkBufferLock      *sync.Mutex
+	sinkBuffer          chan string
+	sinkBufferTruncated *bool
+	timeFormat          string
+}
+
+func (l *Logger) SinkBuffer(buffer chan string, truncated *bool) {
+	l.sinkBuffer = buffer
+	l.sinkBufferTruncated = truncated
+	l.sinkBufferLock = new(sync.Mutex)
+	l.timeFormat = "2006-01-02 15:04:05"
 }
 
 func (l *Logger) SinkDisableStderr() {
@@ -111,40 +124,54 @@ func (l *Logger) MillisecondLogging(enable bool) {
 		if l.fileLogger != nil {
 			l.fileLogger.SetFlags(log.LstdFlags | log.Lmicroseconds)
 		}
+		if l.sinkBuffer != nil {
+			l.timeFormat = "2006-01-02 15:04:05.000"
+		}
 	} else {
 		l.stderrLogger.SetFlags(log.LstdFlags)
 		if l.fileLogger != nil {
 			l.fileLogger.SetFlags(log.LstdFlags)
+		}
+		if l.sinkBuffer != nil {
+			l.timeFormat = "2006-01-02 15:04:05"
 		}
 	}
 }
 
 func (l *Logger) WithPrefix(prefix string) *Logger {
 	newLogger := &Logger{
-		logLevel:      l.logLevel,
-		p:             fmt.Sprintf("%s%s", l.p, prefix),
-		disableStderr: l.disableStderr,
-		logToFile:     l.logToFile,
-		fileLogger:    l.fileLogger,
-		kmesg:         l.kmesg,
-		enableKmesg:   l.enableKmesg,
-		stderrLogger:  l.stderrLogger,
-		milliseconds:  l.milliseconds,
+		logLevel:            l.logLevel,
+		p:                   fmt.Sprintf("%s%s", l.p, prefix),
+		disableStderr:       l.disableStderr,
+		logToFile:           l.logToFile,
+		fileLogger:          l.fileLogger,
+		kmesg:               l.kmesg,
+		enableKmesg:         l.enableKmesg,
+		stderrLogger:        l.stderrLogger,
+		milliseconds:        l.milliseconds,
+		sinkBuffer:          l.sinkBuffer,
+		sinkBufferTruncated: l.sinkBufferTruncated,
+		sinkBufferLock:      l.sinkBufferLock,
+		timeFormat:          l.timeFormat,
 	}
 	return newLogger
 }
 
 func (l *Logger) WithLogLevel(level LogLevel) *Logger {
 	newLogger := &Logger{
-		logLevel:      level,
-		p:             l.p,
-		disableStderr: l.disableStderr,
-		logToFile:     l.logToFile,
-		fileLogger:    l.fileLogger,
-		kmesg:         l.kmesg,
-		enableKmesg:   l.enableKmesg,
-		stderrLogger:  l.stderrLogger,
-		milliseconds:  l.milliseconds,
+		logLevel:            level,
+		p:                   l.p,
+		disableStderr:       l.disableStderr,
+		logToFile:           l.logToFile,
+		fileLogger:          l.fileLogger,
+		kmesg:               l.kmesg,
+		enableKmesg:         l.enableKmesg,
+		stderrLogger:        l.stderrLogger,
+		milliseconds:        l.milliseconds,
+		sinkBuffer:          l.sinkBuffer,
+		sinkBufferTruncated: l.sinkBufferTruncated,
+		sinkBufferLock:      l.sinkBufferLock,
+		timeFormat:          l.timeFormat,
 	}
 	return newLogger
 }
@@ -174,6 +201,17 @@ func (l *Logger) Info(format string, v ...interface{}) {
 	if l.kmesg != nil {
 		fmt.Fprintf(l.kmesg, "<5>"+format+"\n", v...)
 	}
+	if l.sinkBuffer != nil {
+		l.sinkBufferLock.Lock()
+		if len(l.sinkBuffer) >= cap(l.sinkBuffer) {
+			<-l.sinkBuffer
+			if l.sinkBufferTruncated != nil {
+				*l.sinkBufferTruncated = true
+			}
+		}
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBufferLock.Unlock()
+	}
 }
 
 func (l *Logger) Warn(format string, v ...interface{}) {
@@ -189,6 +227,17 @@ func (l *Logger) Warn(format string, v ...interface{}) {
 	}
 	if l.kmesg != nil {
 		fmt.Fprintf(l.kmesg, "<4>"+format+"\n", v...)
+	}
+	if l.sinkBuffer != nil {
+		l.sinkBufferLock.Lock()
+		if len(l.sinkBuffer) >= cap(l.sinkBuffer) {
+			<-l.sinkBuffer
+			if l.sinkBufferTruncated != nil {
+				*l.sinkBufferTruncated = true
+			}
+		}
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBufferLock.Unlock()
 	}
 }
 
@@ -206,6 +255,17 @@ func (l *Logger) Error(format string, v ...interface{}) {
 	if l.kmesg != nil {
 		fmt.Fprintf(l.kmesg, "<3>"+format+"\n", v...)
 	}
+	if l.sinkBuffer != nil {
+		l.sinkBufferLock.Lock()
+		if len(l.sinkBuffer) >= cap(l.sinkBuffer) {
+			<-l.sinkBuffer
+			if l.sinkBufferTruncated != nil {
+				*l.sinkBufferTruncated = true
+			}
+		}
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBufferLock.Unlock()
+	}
 }
 
 func (l *Logger) Critical(format string, v ...interface{}) {
@@ -219,6 +279,17 @@ func (l *Logger) Critical(format string, v ...interface{}) {
 		}
 		if l.kmesg != nil {
 			fmt.Fprintf(l.kmesg, "<2>"+format+"\n", v...)
+		}
+		if l.sinkBuffer != nil {
+			l.sinkBufferLock.Lock()
+			if len(l.sinkBuffer) >= cap(l.sinkBuffer) {
+				<-l.sinkBuffer
+				if l.sinkBufferTruncated != nil {
+					*l.sinkBufferTruncated = true
+				}
+			}
+			l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+			l.sinkBufferLock.Unlock()
 		}
 	}
 	os.Exit(1)
@@ -238,6 +309,17 @@ func (l *Logger) Debug(format string, v ...interface{}) {
 	if l.kmesg != nil {
 		fmt.Fprintf(l.kmesg, "<6>"+format+"\n", v...)
 	}
+	if l.sinkBuffer != nil {
+		l.sinkBufferLock.Lock()
+		if len(l.sinkBuffer) >= cap(l.sinkBuffer) {
+			<-l.sinkBuffer
+			if l.sinkBufferTruncated != nil {
+				*l.sinkBufferTruncated = true
+			}
+		}
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBufferLock.Unlock()
+	}
 }
 
 func (l *Logger) Detail(format string, v ...interface{}) {
@@ -253,5 +335,16 @@ func (l *Logger) Detail(format string, v ...interface{}) {
 	}
 	if l.kmesg != nil {
 		fmt.Fprintf(l.kmesg, "<7>"+format+"\n", v...)
+	}
+	if l.sinkBuffer != nil {
+		l.sinkBufferLock.Lock()
+		if len(l.sinkBuffer) >= cap(l.sinkBuffer) {
+			<-l.sinkBuffer
+			if l.sinkBufferTruncated != nil {
+				*l.sinkBufferTruncated = true
+			}
+		}
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBufferLock.Unlock()
 	}
 }
