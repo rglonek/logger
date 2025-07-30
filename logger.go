@@ -209,7 +209,7 @@ func (l *Logger) Info(format string, v ...interface{}) {
 				*l.sinkBufferTruncated = true
 			}
 		}
-		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(format, v...)
 		l.sinkBufferLock.Unlock()
 	}
 }
@@ -236,7 +236,7 @@ func (l *Logger) Warn(format string, v ...interface{}) {
 				*l.sinkBufferTruncated = true
 			}
 		}
-		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(format, v...)
 		l.sinkBufferLock.Unlock()
 	}
 }
@@ -263,7 +263,7 @@ func (l *Logger) Error(format string, v ...interface{}) {
 				*l.sinkBufferTruncated = true
 			}
 		}
-		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(format, v...)
 		l.sinkBufferLock.Unlock()
 	}
 }
@@ -288,7 +288,7 @@ func (l *Logger) Critical(format string, v ...interface{}) {
 					*l.sinkBufferTruncated = true
 				}
 			}
-			l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+			l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(format, v...)
 			l.sinkBufferLock.Unlock()
 		}
 	}
@@ -317,7 +317,7 @@ func (l *Logger) Debug(format string, v ...interface{}) {
 				*l.sinkBufferTruncated = true
 			}
 		}
-		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(format, v...)
 		l.sinkBufferLock.Unlock()
 	}
 }
@@ -344,7 +344,7 @@ func (l *Logger) Detail(format string, v ...interface{}) {
 				*l.sinkBufferTruncated = true
 			}
 		}
-		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(" %s "+format, v...)
+		l.sinkBuffer <- time.Now().Format(l.timeFormat) + fmt.Sprintf(format, v...)
 		l.sinkBufferLock.Unlock()
 	}
 }
