@@ -1,16 +1,68 @@
 package logger
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"golang.org/x/term"
 )
 
 var defaultLevel LogLevel = INFO
 
 var defaultPrefix = ""
+
+// rawTerminalMode is a global atomic flag indicating whether the terminal is in raw mode.
+// When true, terminal output will use \r\n line endings instead of \n.
+var rawTerminalMode atomic.Bool
+
+// SetRawTerminalMode sets whether the terminal is in raw mode.
+// When enabled, terminal output (stderr) will use \r\n line endings.
+// Call with true when entering raw terminal mode (e.g., term.MakeRaw),
+// and false when restoring normal terminal mode.
+func SetRawTerminalMode(enabled bool) {
+	rawTerminalMode.Store(enabled)
+}
+
+// GetRawTerminalMode returns whether raw terminal mode is currently enabled.
+func GetRawTerminalMode() bool {
+	return rawTerminalMode.Load()
+}
+
+// terminalWriter wraps an io.Writer and adjusts line endings based on raw terminal mode.
+// When raw mode is enabled and the underlying writer is a terminal, \n is converted to \r\n.
+type terminalWriter struct {
+	w          io.Writer
+	isTerminal bool
+}
+
+// newTerminalWriter creates a terminalWriter that wraps the given writer.
+// It detects whether the writer is a terminal file descriptor using term.IsTerminal,
+// which performs an ioctl check to verify it's a real terminal (not a pipe or file).
+func newTerminalWriter(w io.Writer) *terminalWriter {
+	isTerminal := false
+	if f, ok := w.(*os.File); ok {
+		isTerminal = term.IsTerminal(int(f.Fd()))
+	}
+	return &terminalWriter{w: w, isTerminal: isTerminal}
+}
+
+func (t *terminalWriter) Write(p []byte) (n int, err error) {
+	if t.isTerminal && GetRawTerminalMode() {
+		// Convert \n to \r\n for raw terminal mode
+		// First normalize any existing \r\n to \n to avoid \r\r\n
+		output := bytes.ReplaceAll(p, []byte("\r\n"), []byte("\n"))
+		output = bytes.ReplaceAll(output, []byte("\n"), []byte("\r\n"))
+		_, err = t.w.Write(output)
+		return len(p), err // Return original length to satisfy io.Writer contract
+	}
+	return t.w.Write(p)
+}
 
 type LogLevel int
 
@@ -71,8 +123,9 @@ func (l *Logger) SinkEnableKmesg() error {
 }
 
 var defaultLogger = &Logger{
-	logLevel: INFO, // 0=NO_LOGGING 1=CRITICAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG, 6=DETAIL
-	p:        "",
+	logLevel:     INFO, // 0=NO_LOGGING 1=CRITICAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG, 6=DETAIL
+	p:            "",
+	stderrLogger: log.New(newTerminalWriter(os.Stderr), "", log.LstdFlags),
 }
 
 func Info(format string, v ...interface{}) {
@@ -113,7 +166,7 @@ func NewLogger() *Logger {
 	return &Logger{
 		logLevel:     defaultLevel,
 		p:            defaultPrefix,
-		stderrLogger: log.New(os.Stderr, "", log.LstdFlags),
+		stderrLogger: log.New(newTerminalWriter(os.Stderr), "", log.LstdFlags),
 	}
 }
 
